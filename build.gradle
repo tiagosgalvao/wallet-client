@@ -1,0 +1,120 @@
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.10"
+    }
+}
+
+plugins {
+    id "application"
+    id 'java'
+    id 'maven-publish'
+    id "org.springframework.boot" version "2.1.7.RELEASE"
+    id "io.spring.dependency-management" version "1.0.8.RELEASE"
+}
+
+apply plugin: 'com.google.protobuf'
+
+group 'com.galvao.client'
+version '1.0.0-SNAPSHOT'
+sourceCompatibility = 11
+targetCompatibility = 11
+
+ext {
+    springCloudVersion = "Greenwich.RELEASE"
+    lombokVersion = "1.18.8"
+    mapstructVersion = "1.3.0.Final"
+    swaggerVersion = "2.9.2"
+    grpcVersion = '1.25.0'
+    protobufVersion = '3.11.0'
+    protobufGradlePluginVersion = '0.8.10'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile("net.devh:grpc-server-spring-boot-starter:2.6.2.RELEASE")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    runtime("mysql:mysql-connector-java")
+    runtimeOnly("org.springframework.boot:spring-boot-devtools")
+    compileOnly("org.projectlombok:lombok:${lombokVersion}")
+    annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+    compile("org.mapstruct:mapstruct:${mapstructVersion}")
+    annotationProcessor("org.mapstruct:mapstruct-processor:${mapstructVersion}")
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        mavenBom "io.grpc:grpc-bom:${grpcVersion}"
+        mavenBom "com.google.protobuf:protobuf-bom:${protobufVersion}"
+    }
+}
+
+sourceSets {
+    main {
+        proto {
+            srcDir 'src/main/proto'
+        }
+        java {
+            // include self written and generated code
+            srcDirs 'src/main/java', 'generated-sources/main/java', 'generated-sources/main/grpc'
+        }
+    }
+}
+
+subprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+    tasks.withType(JavaCompile) {
+        sourceCompatibility = "1.8"
+        targetCompatibility = "1.8"
+    }
+}
+
+mainClassName = "com.galvao.wallet.WalletClientApplication"
+
+
+protobuf {
+    // Configure the protoc executable
+    protoc {
+        // Download from repositories
+        artifact = 'com.google.protobuf:protoc:3.0.2'
+    }
+
+    // Configure the codegen plugins
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.1.2'
+        }
+    }
+    generateProtoTasks.generatedFilesBaseDir = 'generated-sources'
+
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+}
+
+bootRun {
+    if (project.hasProperty('args')) {
+        args project.args.split(',')
+    }
+}
+
+task cleanProtoGen{
+    doFirst{
+        delete("$projectDir/src/main/protoGen")
+    }
+}
+clean.dependsOn cleanProtoGen
